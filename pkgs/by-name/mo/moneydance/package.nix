@@ -1,4 +1,4 @@
-{ lib, stdenv, fetchzip, makeWrapper, openjdk21, openjfx21, jvmFlags ? [ ] }:
+{ lib, stdenv, fetchzip, makeWrapper, writeScript, openjdk21, openjfx21, jvmFlags ? [ ] }:
 let jdk = openjdk21.override { enableJavaFX = true; };
 in stdenv.mkDerivation (finalAttrs: {
   pname = "moneydance";
@@ -39,7 +39,19 @@ in stdenv.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  passthru = { inherit jdk; };
+  passthru = {
+    inherit jdk;
+    updateScript = writeScript "update-moneydance" ''
+      #!/usr/bin/env nix-shell
+      #!nix-shell -i bash -p curl pcre2 common-updater-scripts
+
+      set -eu -o pipefail
+
+      changelog='https://infinitekind.com/stabledl/current/changelog.txt'
+      version=$(curl -s "$changelog" | pcre2grep -m 1 -O '$1_$2' '^Moneydance ([\d\.]+) build (\d+) ')
+      update-source-version moneydance "$version"
+    '';
+  };
 
   meta = {
     homepage = "https://infinitekind.com/moneydance";
